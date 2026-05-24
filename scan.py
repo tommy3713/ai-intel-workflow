@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import httpx
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -67,27 +68,66 @@ def fetch_positions_from_notion() -> str:
     )
 
 
+
+def _rich_text(text: str) -> list[dict]:
+    """Parse **bold** markers into Notion rich_text segments, chunked at 1800 chars."""
+    parts = []
+    for i, seg in enumerate(re.split(r'\*\*(.+?)\*\*', text)):
+        if not seg:
+            continue
+        bold = (i % 2 == 1)
+        for j in range(0, len(seg), 1800):
+            parts.append({
+                "type": "text",
+                "text": {"content": seg[j:j + 1800]},
+                **({"annotations": {"bold": True}} if bold else {}),
+            })
+    return parts or [{"type": "text", "text": {"content": ""}}]
+
+
+def _markdown_to_blocks(md: str) -> list[dict]:
+    """Convert markdown report to Notion native blocks."""
+    blocks = []
+    for line in md.splitlines():
+        if line.startswith("# "):
+            blocks.append({"object": "block", "type": "heading_1",
+                           "heading_1": {"rich_text": _rich_text(line[2:])}})
+        elif line.startswith("## "):
+            blocks.append({"object": "block", "type": "heading_2",
+                           "heading_2": {"rich_text": _rich_text(line[3:])}})
+        elif line.startswith("### "):
+            blocks.append({"object": "block", "type": "heading_3",
+                           "heading_3": {"rich_text": _rich_text(line[4:])}})
+        elif line.startswith("> "):
+            blocks.append({"object": "block", "type": "quote",
+                           "quote": {"rich_text": _rich_text(line[2:])}})
+        elif line.startswith("- ") or line.startswith("* "):
+            blocks.append({"object": "block", "type": "bulleted_list_item",
+                           "bulleted_list_item": {"rich_text": _rich_text(line[2:])}})
+        elif line.strip() == "---":
+            blocks.append({"object": "block", "type": "divider", "divider": {}})
+        elif line.strip() == "":
+            pass  # skip blank lines
+        else:
+            blocks.append({"object": "block", "type": "paragraph",
+                           "paragraph": {"rich_text": _rich_text(line)}})
+    return blocks
+
+
 def save_to_notion(report: IntelReport, report_type: str, now: datetime) -> str:
     notion = NotionClient(auth=os.environ["NOTION_API_KEY"])
     title = f"{'☀️ 早報' if report_type == 'morning' else '🌙 晚報'} {now.strftime('%Y-%m-%d')}"
 
-    # Notion caps rich_text content at 2000 chars; emoji count as 2,
-    # so use 1800 to stay safely under the limit
-    text = report.markdown_report
-    children = [
-        {
-            "object": "block",
-            "type": "paragraph",
-            "paragraph": {"rich_text": [{"text": {"content": text[i:i + 1800]}}]},
-        }
-        for i in range(0, len(text), 1800)
-    ]
+    all_blocks = _markdown_to_blocks(report.markdown_report)
 
+    # Notion allows max 100 children per create/append call
     page = notion.pages.create(
         parent={"database_id": os.environ["NOTION_DATABASE_ID"]},
         properties={"Name": {"title": [{"text": {"content": title}}]}},
-        children=children,
+        children=all_blocks[:100],
     )
+    for i in range(100, len(all_blocks), 100):
+        notion.blocks.children.append(page["id"], children=all_blocks[i:i + 100])
 
     page_id = page["id"].replace("-", "")
     return f"https://www.notion.so/{page_id}"
