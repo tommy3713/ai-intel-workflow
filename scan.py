@@ -71,15 +71,16 @@ def save_to_notion(report: IntelReport, report_type: str, now: datetime) -> str:
     notion = NotionClient(auth=os.environ["NOTION_API_KEY"])
     title = f"{'☀️ 早報' if report_type == 'morning' else '🌙 晚報'} {now.strftime('%Y-%m-%d')}"
 
-    # Notion rich_text blocks are capped at 2000 chars each
+    # Notion caps rich_text content at 2000 chars; emoji count as 2,
+    # so use 1800 to stay safely under the limit
     text = report.markdown_report
     children = [
         {
             "object": "block",
             "type": "paragraph",
-            "paragraph": {"rich_text": [{"text": {"content": text[i:i + 2000]}}]},
+            "paragraph": {"rich_text": [{"text": {"content": text[i:i + 1800]}}]},
         }
-        for i in range(0, len(text), 2000)
+        for i in range(0, len(text), 1800)
     ]
 
     page = notion.pages.create(
