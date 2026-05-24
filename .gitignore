@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Output backups
+output/
+
+# macOS
+.DS_Store
