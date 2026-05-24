@@ -6,9 +6,8 @@ venv/
 .venv/
 *.egg-info/
 
-# Secrets
+# Secrets — .env.local intentionally committed to private repo for Routines
 .env
-.env.local
 .env.*.local
 
 # Output backups
