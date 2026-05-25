@@ -28,6 +28,6 @@ jobs:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          NOTION_POSITIONS_DB_ID: ${{ secrets.NOTION_POSITIONS_DB_ID }}
+          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          NOTION_POSITIONS_DB_ID: ${{ vars.NOTION_POSITIONS_DB_ID }}
         run: python scan.py
