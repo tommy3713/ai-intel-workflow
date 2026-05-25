@@ -5,6 +5,9 @@ on:
     - cron: '0 12 * * *'  # 21:00 JST (UTC+9)
   workflow_dispatch:       # allow manual trigger
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   scan:
     runs-on: ubuntu-latest
