@@ -10,7 +10,7 @@ from openai import OpenAI
 from google import genai
 from pydantic import ValidationError
 from schemas.report import IntelReport
-from config import MORNING_QUERIES, EVENING_QUERIES
+from config import MORNING_QUERY_TEMPLATES, EVENING_QUERY_TEMPLATES
 
 load_dotenv()
 load_dotenv(".env.local", override=True)
@@ -26,7 +26,7 @@ def _notion_headers() -> dict:
     }
 
 
-def fetch_positions_from_notion() -> str:
+def fetch_positions_from_notion() -> tuple[list[dict], str]:
     db_id = os.environ["NOTION_POSITIONS_DB_ID"]
     r = httpx.post(
         f"https://api.notion.com/v1/databases/{db_id}/query",
@@ -34,10 +34,10 @@ def fetch_positions_from_notion() -> str:
         json={},
     )
     r.raise_for_status()
-    results = r.json()
+    positions_raw = r.json()["results"]
 
     us_positions, tw_positions = [], []
-    for page in results["results"]:
+    for page in positions_raw:
         props = page["properties"]
         try:
             ticker = props["Ticker"]["title"][0]["text"]["content"]
@@ -70,10 +70,53 @@ def fetch_positions_from_notion() -> str:
         except (KeyError, IndexError, TypeError):
             continue
 
-    return (
+    my_positions_str = (
         "【我的美股持倉】\n" + ("\n".join(us_positions) or "  （無）") +
         "\n\n【我的台股持倉】\n" + ("\n".join(tw_positions) or "  （無）")
     )
+    return positions_raw, my_positions_str
+
+
+def build_queries(positions_raw: list[dict], templates: list[dict]) -> list[dict]:
+    us_stocks, tw_stocks, options = [], [], []
+
+    for page in positions_raw:
+        props = page["properties"]
+        try:
+            ticker = props["Ticker"]["title"][0]["text"]["content"]
+            market = props["市場"]["select"]["name"]
+            pos_type = props["類型"]["select"]["name"]
+
+            if market == "US":
+                if pos_type == "股票":
+                    if ticker not in us_stocks:
+                        us_stocks.append(ticker)
+                elif pos_type in ["Call", "Put"]:
+                    base = ticker.replace(" Call", "").replace(" Put", "").strip()
+                    if base not in options:
+                        options.append(base)
+                    if base not in us_stocks:
+                        us_stocks.append(base)
+            elif market == "TW":
+                if pos_type == "股票":
+                    if ticker not in tw_stocks:
+                        tw_stocks.append(ticker)
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    us_tickers_str = " ".join(us_stocks)
+    tw_tickers_str = " ".join(tw_stocks)
+    options_tickers_str = " ".join(options) if options else " ".join(us_stocks[:5])
+
+    queries = []
+    for t in templates:
+        q = (t["query"]
+             .replace("{us_tickers}", us_tickers_str)
+             .replace("{tw_tickers}", tw_tickers_str)
+             .replace("{options_tickers}", options_tickers_str))
+        queries.append({"id": t["id"], "query": q})
+
+    return queries
 
 
 
@@ -212,13 +255,18 @@ def analyze_with_gemini(raw_news: dict, report_type: str, now: datetime, my_posi
 def main():
     now = datetime.now(JST)
     report_type = "morning" if now.hour < 12 else "evening"
-    queries = MORNING_QUERIES if report_type == "morning" else EVENING_QUERIES
+    templates = MORNING_QUERY_TEMPLATES if report_type == "morning" else EVENING_QUERY_TEMPLATES
 
-    print(f"[{now.strftime('%Y-%m-%d %H:%M JST')}] Starting {report_type} scan ({len(queries)} queries)...")
+    print(f"[{now.strftime('%Y-%m-%d %H:%M JST')}] Starting {report_type} scan...")
 
     print("\n--- Notion: fetch positions ---")
-    my_positions = fetch_positions_from_notion()
+    positions_raw, my_positions = fetch_positions_from_notion()
     print(my_positions)
+
+    print("\n--- Build queries ---")
+    queries = build_queries(positions_raw, templates)
+    for q in queries:
+        print(f"  [{q['id']}] {q['query'][:120]}...")
 
     print("\n--- Perplexity ---")
     raw_news = run_perplexity_queries(queries)

@@ -1,9 +1,9 @@
-MORNING_QUERIES = [
+MORNING_QUERY_TEMPLATES = [
     {
         "id": "earnings",
         "query": (
             "Latest earnings results, guidance revisions, and management commentary "
-            "from NVDA AMD AVGO INTC MU MSFT GOOGL AMZN AAPL in the past 24 hours. "
+            "from {us_tickers} in the past 24 hours. "
             "Focus on AI capex, data center demand, and supply chain signals."
         )
     },
@@ -20,6 +20,8 @@ MORNING_QUERIES = [
         "query": (
             "TSMC CoWoS capacity, HBM qualification progress, advanced packaging supply chain, "
             "Taiwan AI supply chain order movements and production updates in the past 24 hours. "
+            "Include: {tw_tickers}. "
+            "Also include capacity expansion, production ramp, and supply-demand changes for: {us_tickers}. "
             "Include: cooling, CPO, test, passive components, server ODMs."
         )
     },
@@ -28,7 +30,7 @@ MORNING_QUERIES = [
         "query": (
             "Analyst rating changes with core thesis revisions (not just price target), "
             "institutional block trades, and options market signals for "
-            "NVDA AMD AVGO INTC MU TSMC and Taiwan AI supply chain stocks in the past 24 hours."
+            "{us_tickers} and Taiwan AI supply chain stocks in the past 24 hours."
         )
     },
     {
@@ -36,7 +38,7 @@ MORNING_QUERIES = [
         "query": (
             "What are the most significant AI supply chain news stories from Taiwan "
             "and US semiconductor industry in the past 24 hours that are NOT about "
-            "NVDA AMD AVGO INTC MU MSFT GOOGL AMZN AAPL? "
+            "{us_tickers}? "
             "Focus on structural changes, unexpected events, or emerging companies "
             "in the AI chip supply chain ecosystem. "
             "Include design wins, design losses, new customer relationships, "
@@ -45,19 +47,19 @@ MORNING_QUERIES = [
     }
 ]
 
-EVENING_QUERIES = [
+EVENING_QUERY_TEMPLATES = [
     {
         "id": "taiwan_close",
         "query": (
             "Taiwan stock market close summary today: AI supply chain sectors performance, "
-            "三大法人 (FINI, investment trust, dealers) net buy/sell in key AI stocks. "
+            "三大法人 (FINI, investment trust, dealers) net buy/sell for {tw_tickers} and key AI stocks. "
             "TWSE and OTC AI-related sector indices."
         )
     },
     {
         "id": "us_premarket",
         "query": (
-            "US stock premarket activity and futures for NVDA AMD AVGO INTC MU MSFT GOOGL AMZN AAPL. "
+            "US stock premarket activity and futures for {us_tickers}. "
             "Any after-hours news or earnings releases in the past 4 hours."
         )
     },
@@ -66,6 +68,8 @@ EVENING_QUERIES = [
         "query": (
             "TSMC CoWoS capacity, HBM qualification progress, advanced packaging supply chain, "
             "Taiwan AI supply chain order movements and production updates today. "
+            "Include: {tw_tickers}. "
+            "Also include capacity expansion, production ramp, and supply-demand changes for: {us_tickers}. "
             "Include: cooling, CPO, test, passive components, server ODMs."
         )
     },
@@ -73,8 +77,8 @@ EVENING_QUERIES = [
         "id": "options_vol",
         "query": (
             "Implied volatility levels, unusual options activity, and put/call ratios "
-            "for NVDA AMD AVGO MU INTC today. "
-            "Any structured trade setups or vol events (earnings, product launches) in next 2 weeks."
+            "for {options_tickers} today. "
+            "Any vol events (earnings, product launches) in next 2 weeks."
         )
     },
     {
@@ -82,7 +86,7 @@ EVENING_QUERIES = [
         "query": (
             "What are the most significant AI supply chain news stories from Taiwan "
             "and US semiconductor industry today that are NOT about "
-            "NVDA AMD AVGO INTC MU MSFT GOOGL AMZN AAPL? "
+            "{us_tickers}? "
             "Focus on structural changes, unexpected events, or emerging companies "
             "in the AI chip supply chain ecosystem. "
             "Include design wins, design losses, new customer relationships, "
