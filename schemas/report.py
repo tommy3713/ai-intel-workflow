@@ -39,14 +39,28 @@ class OptionsContext(BaseModel):
     upcoming_vol_events: list[str] = Field(description="未來兩週的波動事件，如法說會、產品發表")
 
 
+class WatchItem(BaseModel):
+    ticker: str
+    watch_for: str = Field(description="今晚關注的具體指標或消息")
+    action_trigger: str = Field(description="出現什麼情況考慮什麼行動方向")
+
+
 class IntelReport(BaseModel):
     report_type: Literal["morning", "evening"]
     generated_at: datetime
+    opening_conclusion: Optional[str] = Field(
+        None,
+        description="早報必填：3句以內說明昨晚美股事件、今日台股關注標的、風險提示。晚報填 null。"
+    )
     high_signal_items: list[NewsItem]
     decision_questions: list[DecisionQuestion] = Field(
-        description="針對我的持倉，今天需要回答的具體問題，最多5個"
+        description="今日新聞觸發的持倉問題，最多8個，有到期日部位優先，無新聞觸發不硬生成"
     )
     market_snapshot: MarketSnapshot
     options_context: Optional[OptionsContext] = None
+    watchlist_tonight: list[WatchItem] = Field(
+        default_factory=list,
+        description="晚報：今晚最需要關注的持倉，最多3項，早報填 []"
+    )
     markdown_report: str
     editor_note: Optional[str] = None

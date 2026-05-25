@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import re
 import httpx
@@ -48,6 +49,10 @@ def fetch_positions_from_notion() -> str:
             strike = props["行使價"]["number"]
             note_rich = props["備註"]["rich_text"]
             note = note_rich[0]["text"]["content"] if note_rich else ""
+            reason_rich = (props.get("持倉理由") or {}).get("rich_text", [])
+            reason = reason_rich[0]["text"]["content"] if reason_rich else ""
+            exit_rich = (props.get("目標出場條件") or {}).get("rich_text", [])
+            exit_cond = exit_rich[0]["text"]["content"] if exit_rich else ""
 
             line = f"  - {ticker} ({pos_type})"
             if avg_cost: line += f" avg={avg_cost}"
@@ -55,6 +60,8 @@ def fetch_positions_from_notion() -> str:
             if strike: line += f" strike={strike}"
             if expiry.get("start"): line += f" exp={expiry['start']}"
             if note: line += f" [{note}]"
+            if reason: line += f" [持倉理由：{reason}]"
+            if exit_cond: line += f" [出場條件：{exit_cond}]"
 
             if market == "US":
                 us_positions.append(line)
@@ -213,11 +220,11 @@ def main():
     except json.JSONDecodeError as e:
         print(f"JSON parse error: {e}")
         print("\nRaw response:\n", gemini_raw)
-        return
+        sys.exit(1)
     except ValidationError as e:
         print(f"Validation error:\n{e}")
         print("\nRaw response:\n", gemini_raw)
-        return
+        sys.exit(1)
 
     print("\n--- Notion: write report ---")
     page_url = save_to_notion(report, report_type, now)
