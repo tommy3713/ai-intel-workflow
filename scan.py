@@ -123,9 +123,17 @@ def _markdown_to_blocks(md: str) -> list[dict]:
 
 
 def save_to_notion(report: IntelReport, report_type: str, now: datetime) -> str:
-    title = f"{'☀️ 早報' if report_type == 'morning' else '🌙 晚報'} {now.strftime('%Y-%m-%d')}"
+    report_label = "☀️ 早報" if report_type == "morning" else "🌙 晚報"
+    title = f"{report_label} {now.strftime('%Y-%m-%d')}"
     all_blocks = _markdown_to_blocks(report.markdown_report)
     headers = _notion_headers()
+
+    bias_map = {"bullish": "偏多", "bearish": "偏空", "neutral": "中性"}
+    market_bias = bias_map.get(
+        report.market_snapshot.taiwan_sector_bias if report_type == "morning"
+        else report.market_snapshot.us_futures_bias,
+        "中性"
+    )
 
     # Notion allows max 100 children per create/append call
     r = httpx.post(
@@ -133,7 +141,13 @@ def save_to_notion(report: IntelReport, report_type: str, now: datetime) -> str:
         headers=headers,
         json={
             "parent": {"database_id": os.environ["NOTION_DATABASE_ID"]},
-            "properties": {"Name": {"title": [{"text": {"content": title}}]}},
+            "properties": {
+                "標題": {"title": [{"text": {"content": title}}]},
+                "類型": {"select": {"name": report_label}},
+                "日期": {"date": {"start": now.strftime("%Y-%m-%d")}},
+                "高信號數量": {"number": len(report.high_signal_items)},
+                "市場偏向": {"select": {"name": market_bias}},
+            },
             "children": all_blocks[:100],
         },
     )
