@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from google import genai
 from pydantic import ValidationError
-from notion_client import Client as NotionClient
 from schemas.report import IntelReport
 from config import MORNING_QUERIES, EVENING_QUERIES
 
@@ -18,17 +17,19 @@ load_dotenv(".env.local", override=True)
 JST = ZoneInfo("Asia/Tokyo")
 
 
-def fetch_positions_from_notion() -> str:
-    api_key = os.environ["NOTION_API_KEY"]
-    db_id = os.environ["NOTION_POSITIONS_DB_ID"]
-    headers = {
-        "Authorization": f"Bearer {api_key}",
+def _notion_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {os.environ['NOTION_API_KEY']}",
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
     }
+
+
+def fetch_positions_from_notion() -> str:
+    db_id = os.environ["NOTION_POSITIONS_DB_ID"]
     r = httpx.post(
         f"https://api.notion.com/v1/databases/{db_id}/query",
-        headers=headers,
+        headers=_notion_headers(),
         json={},
     )
     r.raise_for_status()
@@ -115,19 +116,30 @@ def _markdown_to_blocks(md: str) -> list[dict]:
 
 
 def save_to_notion(report: IntelReport, report_type: str, now: datetime) -> str:
-    notion = NotionClient(auth=os.environ["NOTION_API_KEY"])
     title = f"{'☀️ 早報' if report_type == 'morning' else '🌙 晚報'} {now.strftime('%Y-%m-%d')}"
-
     all_blocks = _markdown_to_blocks(report.markdown_report)
+    headers = _notion_headers()
 
     # Notion allows max 100 children per create/append call
-    page = notion.pages.create(
-        parent={"database_id": os.environ["NOTION_DATABASE_ID"]},
-        properties={"Name": {"title": [{"text": {"content": title}}]}},
-        children=all_blocks[:100],
+    r = httpx.post(
+        "https://api.notion.com/v1/pages",
+        headers=headers,
+        json={
+            "parent": {"database_id": os.environ["NOTION_DATABASE_ID"]},
+            "properties": {"Name": {"title": [{"text": {"content": title}}]}},
+            "children": all_blocks[:100],
+        },
     )
+    r.raise_for_status()
+    page = r.json()
+
     for i in range(100, len(all_blocks), 100):
-        notion.blocks.children.append(page["id"], children=all_blocks[i:i + 100])
+        rb = httpx.patch(
+            f"https://api.notion.com/v1/blocks/{page['id']}/children",
+            headers=headers,
+            json={"children": all_blocks[i:i + 100]},
+        )
+        rb.raise_for_status()
 
     page_id = page["id"].replace("-", "")
     return f"https://www.notion.so/{page_id}"
