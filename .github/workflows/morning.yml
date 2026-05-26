@@ -2,7 +2,7 @@ name: AI Intel Morning Scan
 
 on:
   schedule:
-    - cron: '30 23 * * *'  # 08:30 JST (UTC+9)
+    - cron: '30 21 * * *'  # 06:30 JST (UTC+9)
   workflow_dispatch:        # allow manual trigger
 
 env:
