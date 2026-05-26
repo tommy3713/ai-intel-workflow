@@ -2,7 +2,7 @@ name: AI Intel Evening Scan
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 21:00 JST (UTC+9)
+    - cron: '0 10 * * *'  # 19:00 JST (UTC+9)，目標 21:00 JST 前跑完
   workflow_dispatch:       # allow manual trigger
 
 env:
